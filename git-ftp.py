@@ -333,5 +333,7 @@ def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
             raise IOError('Wrong user input.')
         print complaint
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
+os.chdir('/Users/mcfedr/dev/Perfect Look')
+main()
