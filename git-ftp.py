@@ -63,6 +63,8 @@ def main():
 
     base = options.ftp.remotepath
     logging.info("Base directory is %s", base)
+    localpath = options.ftp.localpath
+    logging.info("Local directory is %s", localpath)
     try:
         branch = (h for h in repo.heads if h.name == options.branch).next()
     except StopIteration:
@@ -71,6 +73,8 @@ def main():
     if options.commit:
         commit = repo.commit(options.commit)
     tree   = commit.tree
+    if len(localpath) > 0:
+		tree = tree[localpath]
     ftp    = ftplib.FTP(options.ftp.hostname, options.ftp.username, options.ftp.password)
     ftp.cwd(base)
 
@@ -89,6 +93,8 @@ def main():
         oldtree = get_empty_tree(repo)
     else:
         oldtree = repo.commit(hash).tree
+        if len(localpath) > 0:
+            oldtree = oldtree[localpath]
 
     if oldtree.hexsha == tree.hexsha:
         logging.info('Nothing to do!')
@@ -146,6 +152,7 @@ class FtpData():
     username = None
     hostname = None
     remotepath = None
+    localpath = None
 
 def get_ftp_creds(repo, options):
     """
@@ -159,6 +166,7 @@ def get_ftp_creds(repo, options):
         password=s00perP4zzw0rd
         hostname=ftp.hostname.com
         remotepath=/htdocs
+		localpath=site/
 
     Please note that it isn't necessary to have this file,
     you'll be asked for the data every time you upload something.
@@ -184,11 +192,13 @@ def get_ftp_creds(repo, options):
         options.ftp.username = cfg.get(options.branch,'username')
         options.ftp.hostname = cfg.get(options.branch,'hostname')
         options.ftp.remotepath = cfg.get(options.branch,'remotepath')
+        options.ftp.localpath = cfg.get(options.branch, 'localpath')
     else:
         options.ftp.username = raw_input('FTP Username: ')
         options.ftp.password = getpass.getpass('FTP Password: ')
         options.ftp.hostname = raw_input('FTP Hostname: ')
         options.ftp.remotepath = raw_input('Remote Path: ')
+        options.ftp.localpath = raw_input('Local Path: ')
 
         # set default branch
         if ask_ok("Should I write ftp details to .git/ftpdata? "):
@@ -197,6 +207,7 @@ def get_ftp_creds(repo, options):
             cfg.set(options.branch, 'password', options.ftp.password)
             cfg.set(options.branch, 'hostname', options.ftp.hostname)
             cfg.set(options.branch, 'remotepath', options.ftp.remotepath)
+            cfg.set(options.branch, 'localpath', options.ftp.localpath)
             f = open(ftpdata, 'w')
             cfg.write(f)
 
@@ -256,7 +267,8 @@ def upload_diff(repo, oldtree, tree, ftp, base):
 
             if status == "A":
                 # try building up the parent directory
-                subtree = tree
+                subtree = ""
+                
                 if isinstance(node, Blob):
                     directories = file.split("/")[:-1]
                 else:
@@ -264,14 +276,14 @@ def upload_diff(repo, oldtree, tree, ftp, base):
                     assert isinstance(node, Submodule)
                     directories = file.split("/")
                 for c in directories:
-                    subtree = subtree/c
+                    subtree += c + "/" 
                     try:
-                        ftp.mkd(subtree.path)
+                        ftp.mkd(subtree)
                     except ftplib.error_perm:
                         pass
 
             if isinstance(node, Blob):
-                upload_blob(node, ftp)
+                upload_blob(node, file, ftp)
             else:
                 module = node.module()
                 module_tree = module.commit(node.hexsha).tree
@@ -292,7 +304,7 @@ def is_special_file(name):
     """Returns true if a file is some special Git metadata and not content."""
     return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules']
 
-def upload_blob(blob, ftp, quiet = False):
+def upload_blob(blob, file, ftp, quiet = False):
     """
     Uploads a blob.  Pre-condition on ftp is that our current working
     directory is the root directory of the repository being uploaded
@@ -303,11 +315,11 @@ def upload_blob(blob, ftp, quiet = False):
         return
     if not quiet: logging.info('Uploading ' + blob.path)
     try:
-        ftp.delete(blob.path)
+        ftp.delete(file)
     except ftplib.error_perm:
         pass
-    ftp.storbinary('STOR ' + blob.path, blob.data_stream)
-    ftp.voidcmd('SITE CHMOD ' + format_mode(blob.mode) + ' ' + blob.path)
+    ftp.storbinary('STOR ' + file, blob.data_stream)
+    ftp.voidcmd('SITE CHMOD ' + format_mode(blob.mode) + ' ' + file)
 
 def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
     while True:
@@ -321,5 +333,7 @@ def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
             raise IOError('Wrong user input.')
         print complaint
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
+os.chdir('/Users/mcfedr/dev/Perfect Look')
+main()

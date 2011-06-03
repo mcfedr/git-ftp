@@ -25,14 +25,18 @@ You can place FTP credentials in `.git/ftpdata`, as such:
     password=s00perP4zzw0rd
     hostname=ftp.hostname.com
     remotepath=/htdocs
+    localpath=site
     
     [staging]
     username=me
     password=s00perP4zzw0rd
     hostname=ftp.hostname.com
     remotepath=/htdocs/staging
+    localpath=site
 
 Each section corresponds to a git branch.
+
+localpath is the name of a subdirectory that is uploaded, or blank for the whole repo
 
 Using a bare repository as a proxy
 ----------------------------------
